@@ -18,8 +18,6 @@ import { ViewWallUseCase } from '../application/usecases/view-wall.usecase';
 import { RealDateProvider } from '../infrastructure/real-date.provider';
 import { PrismaMessageRepository } from '../infrastructure/prisma/message.prisma.repository';
 import { PrismaFolloweeRepository } from '../infrastructure/prisma/followee.prisma.repository';
-import { TimelinePresenter } from '../application/timeline.presenter';
-import { Timeline } from '../domain/timeline';
 import { DefaultTimelinePresenter } from './timeline.default.presenter';
 import { CliTimelinePresenter } from './cli-timeline.presenter';
 
@@ -61,9 +59,14 @@ program
         };
 
         try {
-          await postMessageUseCase.handle(postMessageCommand);
-          console.log('✅ Message posté !');
-          process.exit(0);
+          const result = await postMessageUseCase.handle(postMessageCommand);
+          if (result.isOk()) {
+            console.log('✅ Message posté !');
+            process.exit(0);
+          } else {
+            console.error('❌', result.error);
+            process.exit(1);
+          }
         } catch (error) {
           console.error('❌', error);
           process.exit(1);
@@ -81,9 +84,14 @@ program
         };
 
         try {
-          await editMessageUseCase.handle(editMessageCommand);
-          console.log('✅ Message édité !');
-          process.exit(0);
+          const result = await editMessageUseCase.handle(editMessageCommand);
+          if (result.isOk()) {
+            console.log('✅ Message édité !');
+            process.exit(0);
+          } else {
+            console.error('❌', result.error);
+            process.exit(1);
+          }
         } catch (error) {
           console.error('❌', error);
           process.exit(1);
