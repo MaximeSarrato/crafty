@@ -1,2 +1,5 @@
 dist
 node_modules
+messages-test.json
+user-followees.json
+.env
