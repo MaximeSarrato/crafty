@@ -1,22 +1,25 @@
-import { TestingModule } from '@nestjs/testing';
-import { CommandTestFactory } from 'nest-commander-testing';
-import { CliModule } from '../src/cli.module';
-import {
-  PostgreSqlContainer,
-  StartedPostgreSqlContainer,
-} from 'testcontainers';
-import { PrismaClient } from '@prisma/client';
-import { promisify } from 'util';
+import { Test, TestingModule } from '@nestjs/testing';
+import { INestApplication } from '@nestjs/common';
+import * as request from 'supertest';
 import { exec } from 'child_process';
-import { messageBuilder } from '@crafty/crafty/tests/message.builder';
-import { StubDateProvider } from '@crafty/crafty/infrastructure/stub-date.provider';
+import { ApiModule } from '../src/api.module';
 import { DateProvider } from '@crafty/crafty/application/date-provider';
+import { StubDateProvider } from '@crafty/crafty/infrastructure/stub-date.provider';
+import { PrismaClient } from '@prisma/client';
+import { CliModule } from 'apps/cli/src/cli.module';
+import {
+  StartedPostgreSqlContainer,
+  PostgreSqlContainer,
+} from 'testcontainers';
+import { promisify } from 'util';
 import { PrismaMessageRepository } from '@crafty/crafty/infrastructure/prisma/message.prisma.repository';
+import { messageBuilder } from '@crafty/crafty/tests/message.builder';
 import { PrismaFolloweeRepository } from '@crafty/crafty/infrastructure/prisma/followee.prisma.repository';
 
 const asyncExec = promisify(exec);
 
-describe('Cli App (e2e)', () => {
+describe('Api (e2e)', () => {
+  let app: INestApplication;
   let container: StartedPostgreSqlContainer;
   let prismaClient: PrismaClient;
   let commandInstance: TestingModule;
@@ -46,46 +49,46 @@ describe('Cli App (e2e)', () => {
     return prismaClient.$connect();
   });
 
+  afterAll(async () => {
+    await container.stop({ timeout: 1000 });
+    return prismaClient.$disconnect();
+  });
+
   beforeEach(async () => {
-    jest.spyOn(process, 'exit').mockImplementation(() => {
-      return undefined as never;
-    });
-    commandInstance = await CommandTestFactory.createTestingCommand({
-      imports: [CliModule],
+    const moduleFixture: TestingModule = await Test.createTestingModule({
+      imports: [ApiModule],
     })
       .overrideProvider(DateProvider)
       .useValue(stubDateProvider)
       .overrideProvider(PrismaClient)
       .useValue(prismaClient)
       .compile();
+
     await prismaClient.message.deleteMany();
     await prismaClient.$executeRawUnsafe('DELETE FROM "User" CASCADE');
+
+    app = moduleFixture.createNestApplication();
+    await app.init();
   });
 
-  afterAll(async () => {
-    await container.stop({ timeout: 1000 });
-    return prismaClient.$disconnect();
-  });
-
-  test('post command', async () => {
+  it('/post (POST)', async () => {
     const messageRepository = new PrismaMessageRepository(prismaClient);
 
-    await CommandTestFactory.run(commandInstance, [
-      'post',
-      'Alice',
-      'Message from test',
-    ]);
+    await request(app.getHttpServer())
+      .post('/post')
+      .send({ user: 'Alice', message: 'Message from api test' })
+      .expect(201);
 
     const aliceMessages = await messageRepository.getAllMessagesOfUser('Alice');
     expect(aliceMessages[0].data).toEqual({
       id: expect.any(String),
       author: 'Alice',
-      text: 'Message from test',
+      text: 'Message from api test',
       publishedAt: now,
     });
   });
 
-  test('edit command', async () => {
+  it('/edit (POST)', async () => {
     const messageRepository = new PrismaMessageRepository(prismaClient);
 
     await messageRepository.save(
@@ -97,67 +100,79 @@ describe('Cli App (e2e)', () => {
         .build(),
     );
 
-    await CommandTestFactory.run(commandInstance, [
-      'edit',
-      'm1',
-      'Hello, World!',
-    ]);
+    await request(app.getHttpServer())
+      .post('/edit')
+      .send({ messageId: 'm1', message: 'Message from api test' })
+      .expect(200);
 
-    const aliceMessage = await messageRepository.getById('m1');
-    expect(aliceMessage.data).toEqual({
+    const aliceMessages = await messageRepository.getAllMessagesOfUser('Alice');
+    expect(aliceMessages[0].data).toEqual({
       id: 'm1',
       author: 'Alice',
-      text: 'Hello, World!',
+      text: 'Message from api test',
       publishedAt: now,
     });
   });
 
-  test('follow command', async () => {
+  it('/follow (POST)', async () => {
     const followeeRepository = new PrismaFolloweeRepository(prismaClient);
 
-    await CommandTestFactory.run(commandInstance, ['follow', 'Alice', 'Bob']);
+    await request(app.getHttpServer())
+      .post('/follow')
+      .send({ user: 'Alice', followee: 'Bob' })
+      .expect(201);
 
     const aliceFollowees = await followeeRepository.getFolloweesOf('Alice');
     expect(aliceFollowees).toEqual(['Bob']);
   });
 
-  test('view command', async () => {
+  it('/view (GET)', async () => {
     const messageRepository = new PrismaMessageRepository(prismaClient);
-    const consoleTable = jest.fn();
-    jest.spyOn(console, 'table').mockImplementation(consoleTable);
+
     await messageRepository.save(
       messageBuilder()
         .authoredBy('Alice')
         .withId('alice-msg-id')
         .publishedAt(now)
-        .withText('Message Test View command')
+        .withText('Message from api test')
         .build(),
     );
 
-    await CommandTestFactory.run(commandInstance, ['view', 'Alice']);
+    await request(app.getHttpServer())
+      .get('/view')
+      .query({ user: 'Alice' })
+      .expect(200)
+      .then((response) => {
+        expect(response.body).toEqual([
+          {
+            id: expect.any(String),
+            author: 'Alice',
+            text: 'Message from api test',
+            publishedAt: now.toISOString(),
+          },
+        ]);
+      });
 
-    expect(consoleTable).toHaveBeenCalledWith([
-      {
-        author: 'Alice',
-        publicationTime: 'less than a minute ago',
-        text: 'Message Test View command',
-      },
-    ]);
+    const aliceMessages = await messageRepository.getAllMessagesOfUser('Alice');
+    expect(aliceMessages[0].data).toEqual({
+      id: expect.any(String),
+      author: 'Alice',
+      text: 'Message from api test',
+      publishedAt: now,
+    });
   });
 
-  test('wall command', async () => {
+  it('/wall (GET)', async () => {
     const messageRepository = new PrismaMessageRepository(prismaClient);
     const followeeRepository = new PrismaFolloweeRepository(prismaClient);
 
-    const consoleTable = jest.fn();
-    jest.spyOn(console, 'table').mockImplementation(consoleTable);
     await followeeRepository.followUser({ user: 'Alice', followee: 'Bob' });
     await messageRepository.save(
       messageBuilder()
         .authoredBy('Alice')
         .withId('alice-msg-id')
         .publishedAt(now)
-        .withText('Message Test View command')
+        .withText('Message from api test')
         .build(),
     );
     await messageRepository.save(
@@ -169,19 +184,33 @@ describe('Cli App (e2e)', () => {
         .build(),
     );
 
-    await CommandTestFactory.run(commandInstance, ['wall', 'Alice']);
+    await request(app.getHttpServer())
+      .get('/wall')
+      .query({ user: 'Alice' })
+      .expect(200)
+      .then((response) => {
+        expect(response.body).toEqual([
+          {
+            id: 'bob-msg-id',
+            author: 'Bob',
+            text: 'Hey, I am Bob!',
+            publishedAt: new Date('2023-02-14T19:01:00.000Z').toISOString(),
+          },
+          {
+            id: 'alice-msg-id',
+            author: 'Alice',
+            text: 'Message from api test',
+            publishedAt: now.toISOString(),
+          },
+        ]);
+      });
 
-    expect(consoleTable).toHaveBeenCalledWith([
-      {
-        author: 'Bob',
-        publicationTime: 'less than a minute ago',
-        text: 'Hey, I am Bob!',
-      },
-      {
-        author: 'Alice',
-        publicationTime: 'less than a minute ago',
-        text: 'Message Test View command',
-      },
-    ]);
+    const aliceMessages = await messageRepository.getAllMessagesOfUser('Alice');
+    expect(aliceMessages[0].data).toEqual({
+      id: expect.any(String),
+      author: 'Alice',
+      text: 'Message from api test',
+      publishedAt: now,
+    });
   });
 });

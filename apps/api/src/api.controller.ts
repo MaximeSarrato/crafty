@@ -18,6 +18,7 @@ import {
   Body,
   Controller,
   Get,
+  HttpCode,
   Post,
   Query,
   Res,
@@ -50,6 +51,7 @@ export class ApiController {
   }
 
   @Post('/edit')
+  @HttpCode(200)
   async editMessage(
     @Body() body: { user: string; messageId: string; message: string },
   ) {
