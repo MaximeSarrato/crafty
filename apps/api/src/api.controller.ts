@@ -18,11 +18,12 @@ import {
   Body,
   Controller,
   Get,
+  HttpCode,
   Post,
   Query,
   Res,
 } from '@nestjs/common';
-import { ApiTimelinePresenter } from './api.timeline.presenter';
+import { ApiTimelinePresenter } from './api-timeline.presenter';
 
 @Controller()
 export class ApiController {
@@ -50,6 +51,7 @@ export class ApiController {
   }
 
   @Post('/edit')
+  @HttpCode(200)
   async editMessage(
     @Body() body: { user: string; messageId: string; message: string },
   ) {

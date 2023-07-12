@@ -1,24 +1,24 @@
 import { Injectable } from '@nestjs/common';
 import { Timeline } from '../../domain/timeline';
-import { DateProvider } from '../date-provider';
 import { MessageRepository } from '../message.repository';
 import { TimelinePresenter } from '../timeline.presenter';
 
 @Injectable()
 export class ViewTimelineUseCase {
-  constructor(
-    private readonly messageRepository: MessageRepository,
-    private readonly dateProvider: DateProvider,
-  ) {}
+  constructor(private readonly messageRepository: MessageRepository) {}
 
   async handle(
-    { user }: { user: string },
+    {
+      user,
+    }: {
+      user: string;
+    },
     timelinePresenter: TimelinePresenter,
   ): Promise<void> {
-    const messagesOfUser = await this.messageRepository.getAllOfUser(user);
+    const messages = await this.messageRepository.getAllMessagesOfUser(user);
 
-    const timeline = new Timeline(messagesOfUser);
+    const timeline = new Timeline(messages);
 
-    timelinePresenter.show(timeline);
+    return timelinePresenter.present(timeline);
   }
 }

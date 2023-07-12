@@ -1,28 +1,22 @@
 import { CraftyModule } from '@crafty/crafty';
-import { PrismaFolloweeRepository } from '@crafty/crafty/infra/prisma/followee.prisma.repository';
-import { PrismaMessageRepository } from '@crafty/crafty/infra/prisma/message.prisma.repository';
-import { PrismaService } from '@crafty/crafty/infra/prisma/prisma.service';
-import { RealDateProvider } from '@crafty/crafty/infra/real-date-provider';
+import { PrismaFolloweeRepository } from '@crafty/crafty/infrastructure/prisma/followee.prisma.repository';
+import { PrismaMessageRepository } from '@crafty/crafty/infrastructure/prisma/message.prisma.repository';
+import { RealDateProvider } from '@crafty/crafty/infrastructure/real-date.provider';
 import { Module } from '@nestjs/common';
-import { CliTimelinePresenter } from './cli.timeline.presenter';
 import { commands } from './commands';
+import { CliTimelinePresenter } from './cli-timeline.presenter';
 import { CustomConsoleLogger } from './custom.console.logger';
-import { DefaultTimelinePresenter } from './default.timeline.presenter';
+import { PrismaService } from '@crafty/crafty/infrastructure/prisma/prisma.service';
 
 @Module({
   imports: [
     CraftyModule.register({
       MessageRepository: PrismaMessageRepository,
-      FolloweeRepository: PrismaFolloweeRepository,
+      FolloweesRepository: PrismaFolloweeRepository,
       DateProvider: RealDateProvider,
       PrismaClient: PrismaService,
     }),
   ],
-  providers: [
-    ...commands,
-    CliTimelinePresenter,
-    CustomConsoleLogger,
-    DefaultTimelinePresenter,
-  ],
+  providers: [...commands, CliTimelinePresenter, CustomConsoleLogger],
 })
 export class CliModule {}

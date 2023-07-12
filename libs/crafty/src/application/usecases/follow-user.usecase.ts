@@ -1,5 +1,5 @@
 import { Injectable } from '@nestjs/common';
-import { FolloweeRepository } from '../followee.repository';
+import { FolloweesRepository } from '../followees.repository';
 
 export type FollowUserCommand = {
   user: string;
@@ -8,9 +8,10 @@ export type FollowUserCommand = {
 
 @Injectable()
 export class FollowUserUseCase {
-  constructor(private readonly followeeRepository: FolloweeRepository) {}
+  constructor(private readonly followeesRepository: FolloweesRepository) {}
+
   async handle(followUserCommand: FollowUserCommand) {
-    return this.followeeRepository.saveFollowee({
+    await this.followeesRepository.followUser({
       user: followUserCommand.user,
       followee: followUserCommand.userToFollow,
     });

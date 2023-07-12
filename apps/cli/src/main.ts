@@ -5,5 +5,4 @@ import { CliModule } from './cli.module';
 async function bootstrap() {
   await CommandFactory.run(CliModule, ['error']);
 }
-
 bootstrap();

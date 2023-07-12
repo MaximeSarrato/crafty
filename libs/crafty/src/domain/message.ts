@@ -1,12 +1,12 @@
 export class MessageTooLongError extends Error {}
-export class EmptyMessageError extends Error {}
+export class MessageEmptyError extends Error {}
 
 export class Message {
   constructor(
     private readonly _id: string,
     private readonly _author: string,
     private _text: MessageText,
-    private readonly _publishedAt: Date
+    private readonly _publishedAt: Date,
   ) {}
 
   get id() {
@@ -17,33 +17,33 @@ export class Message {
     return this._author;
   }
 
+  get text() {
+    return this._text.value;
+  }
+
   get publishedAt() {
     return this._publishedAt;
   }
 
-  get text() {
-    return this._text.value;
+  get data() {
+    return {
+      id: this._id,
+      author: this._author,
+      text: this._text.value,
+      publishedAt: this._publishedAt,
+    };
   }
 
   editText(text: string) {
     this._text = MessageText.of(text);
   }
 
-  get data() {
-    return {
-      id: this.id,
-      author: this.author,
-      text: this.text,
-      publishedAt: this._publishedAt,
-    };
-  }
-
-  static fromData(data: Message["data"]) {
+  static fromData(data: Message['data']) {
     return new Message(
       data.id,
       data.author,
       MessageText.of(data.text),
-      data.publishedAt
+      data.publishedAt,
     );
   }
 }
@@ -56,7 +56,7 @@ export class MessageText {
       throw new MessageTooLongError();
     }
     if (text.trim().length === 0) {
-      throw new EmptyMessageError();
+      throw new MessageEmptyError();
     }
 
     return new MessageText(text);

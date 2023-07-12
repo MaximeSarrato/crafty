@@ -1,81 +1,77 @@
 import {
-  EditMessageCommand,
-  EditMessageUseCase,
-} from "../application/usecases/edit-message.usecase";
-import { Message } from "../domain/message";
-import { InMemoryMessageRepository } from "../infra/message.inmemory.repository";
-import {
-  PostMessageCommand,
   PostMessageUseCase,
-} from "../application/usecases/post-message.usecase";
-import { StubDateProvider } from "../infra/stub-date-provider";
-import { ViewTimelineUseCase } from "../application/usecases/view-timeline.usecase";
-import { DefaultTimelinePresenter } from "../apps/timeline.default.presenter";
-import { TimelinePresenter } from "../application/timeline.presenter";
+  PostMessageCommand,
+} from '../application/usecases/post-message.usecase';
+import { ViewTimelineUseCase } from '../application/usecases/view-timeline.usecase';
+import { StubDateProvider } from '../infrastructure/stub-date.provider';
+import { InMemoryMessageRepository } from '../infrastructure/message.inmemory.repository';
+import { Message } from '../domain/message';
+import {
+  EditMessageUseCase,
+  EditMessageCommand,
+} from '../application/usecases/edit-message.usecase';
+import { TimelinePresenter } from '../application/timeline.presenter';
+import { DefaultTimelinePresenter } from '../apps/timeline.default.presenter';
 
 export const createMessagingFixture = () => {
   const dateProvider = new StubDateProvider();
   const messageRepository = new InMemoryMessageRepository();
-  let thrownError: Error;
-  let timeline: {
-    author: string;
-    text: string;
-    publicationTime: string;
-  }[];
+
   const postMessageUseCase = new PostMessageUseCase(
     messageRepository,
-    dateProvider
+    dateProvider,
   );
   const editMessageUseCase = new EditMessageUseCase(messageRepository);
-  const viewTimelineUseCase = new ViewTimelineUseCase(
-    messageRepository,
-    dateProvider
-  );
+  const viewTimelineUseCase = new ViewTimelineUseCase(messageRepository);
   const defaultTimelinePresenter = new DefaultTimelinePresenter(dateProvider);
   const timelinePresenter: TimelinePresenter = {
-    show(theTimeline) {
-      timeline = defaultTimelinePresenter.show(theTimeline);
+    present(theTimeline) {
+      timeline = defaultTimelinePresenter.present(theTimeline);
     },
   };
+
+  let timeline: { author: string; text: string; publicationTime: string }[];
+
+  let thrownError: Error;
+
   return {
-    givenTheFollowingMessagesExist(messages: Message[]) {
-      messageRepository.givenExistingMessages(messages);
-    },
     givenNowIs(now: Date) {
       dateProvider.now = now;
     },
-    async whenUserPostsAmessage(postMessageCommand: PostMessageCommand) {
-      try {
-        await postMessageUseCase.handle(postMessageCommand);
-      } catch (err) {
-        thrownError = err;
+    givenTheFollowingMessagesExist(messages: Message[]) {
+      messageRepository.givenExistingMessages(messages);
+    },
+    async whenUserPostsAMessage(postMessageCommand: PostMessageCommand) {
+      const result = await postMessageUseCase.handle(postMessageCommand);
+      if (result.isErr()) {
+        thrownError = result.error;
       }
     },
     async whenUserEditsMessage(editMessageCommand: EditMessageCommand) {
-      try {
-        await editMessageUseCase.handle(editMessageCommand);
-      } catch (err) {
-        thrownError = err;
+      const result = await editMessageUseCase.handle(editMessageCommand);
+      if (result.isErr()) {
+        thrownError = result.error;
       }
     },
-    async whenUserSeesTheTimelineOf(user: string) {
+    async whenUserSeesTheTimeLineOf(user: string) {
       await viewTimelineUseCase.handle({ user }, timelinePresenter);
     },
-    async thenMessageShouldBe(expectedMessage: Message) {
-      const message = await messageRepository.getById(expectedMessage.id);
-      expect(message).toEqual(expectedMessage);
-    },
-    thenErrorShouldBe(expectedErrorClass: new () => Error) {
-      expect(thrownError).toBeInstanceOf(expectedErrorClass);
-    },
+
     thenUserShouldSee(
       expectedTimeline: {
         author: string;
         text: string;
         publicationTime: string;
-      }[]
+      }[],
     ) {
       expect(timeline).toEqual(expectedTimeline);
+    },
+    async thenMessageShouldBe(expectedMessage: Message) {
+      const message = await messageRepository.getById(expectedMessage.id);
+      expect(expectedMessage).toEqual(message);
+    },
+    thenErrorShouldBe(expectedErrorClass: new () => Error) {
+      expect(thrownError).toBeInstanceOf(expectedErrorClass);
     },
     messageRepository,
   };

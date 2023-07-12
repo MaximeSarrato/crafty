@@ -3,5 +3,5 @@ import { Timeline } from '../domain/timeline';
 
 @Injectable()
 export abstract class TimelinePresenter {
-  abstract show(timeline: Timeline): void;
+  abstract present(timeline: Timeline): void;
 }

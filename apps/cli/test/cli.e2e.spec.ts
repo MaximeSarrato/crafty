@@ -6,12 +6,13 @@ import {
   StartedPostgreSqlContainer,
 } from 'testcontainers';
 import { PrismaClient } from '@prisma/client';
-import { StubDateProvider } from '@crafty/crafty/infra/stub-date-provider';
 import { promisify } from 'util';
 import { exec } from 'child_process';
-import { DateProvider } from '@crafty/crafty/application/date-provider';
-import { PrismaMessageRepository } from '@crafty/crafty/infra/prisma/message.prisma.repository';
 import { messageBuilder } from '@crafty/crafty/tests/message.builder';
+import { StubDateProvider } from '@crafty/crafty/infrastructure/stub-date.provider';
+import { DateProvider } from '@crafty/crafty/application/date-provider';
+import { PrismaMessageRepository } from '@crafty/crafty/infrastructure/prisma/message.prisma.repository';
+import { PrismaFolloweeRepository } from '@crafty/crafty/infrastructure/prisma/followee.prisma.repository';
 
 const asyncExec = promisify(exec);
 
@@ -20,8 +21,9 @@ describe('Cli App (e2e)', () => {
   let prismaClient: PrismaClient;
   let commandInstance: TestingModule;
   const now = new Date('2023-02-14T19:00:00.000Z');
-  const dateProvider = new StubDateProvider();
-  dateProvider.now = now;
+  const stubDateProvider = new StubDateProvider();
+  stubDateProvider.now = now;
+
   beforeAll(async () => {
     container = await new PostgreSqlContainer()
       .withDatabase('crafty')
@@ -52,7 +54,7 @@ describe('Cli App (e2e)', () => {
       imports: [CliModule],
     })
       .overrideProvider(DateProvider)
-      .useValue(dateProvider)
+      .useValue(stubDateProvider)
       .overrideProvider(PrismaClient)
       .useValue(prismaClient)
       .compile();
@@ -74,13 +76,49 @@ describe('Cli App (e2e)', () => {
       'Message from test',
     ]);
 
-    const aliceMessages = await messageRepository.getAllOfUser('Alice');
+    const aliceMessages = await messageRepository.getAllMessagesOfUser('Alice');
     expect(aliceMessages[0].data).toEqual({
       id: expect.any(String),
       author: 'Alice',
       text: 'Message from test',
       publishedAt: now,
     });
+  });
+
+  test('edit command', async () => {
+    const messageRepository = new PrismaMessageRepository(prismaClient);
+
+    await messageRepository.save(
+      messageBuilder()
+        .withId('m1')
+        .authoredBy('Alice')
+        .withText('Hello, Word!')
+        .publishedAt(now)
+        .build(),
+    );
+
+    await CommandTestFactory.run(commandInstance, [
+      'edit',
+      'm1',
+      'Hello, World!',
+    ]);
+
+    const aliceMessage = await messageRepository.getById('m1');
+    expect(aliceMessage.data).toEqual({
+      id: 'm1',
+      author: 'Alice',
+      text: 'Hello, World!',
+      publishedAt: now,
+    });
+  });
+
+  test('follow command', async () => {
+    const followeeRepository = new PrismaFolloweeRepository(prismaClient);
+
+    await CommandTestFactory.run(commandInstance, ['follow', 'Alice', 'Bob']);
+
+    const aliceFollowees = await followeeRepository.getFolloweesOf('Alice');
+    expect(aliceFollowees).toEqual(['Bob']);
   });
 
   test('view command', async () => {
@@ -99,6 +137,46 @@ describe('Cli App (e2e)', () => {
     await CommandTestFactory.run(commandInstance, ['view', 'Alice']);
 
     expect(consoleTable).toHaveBeenCalledWith([
+      {
+        author: 'Alice',
+        publicationTime: 'less than a minute ago',
+        text: 'Message Test View command',
+      },
+    ]);
+  });
+
+  test('wall command', async () => {
+    const messageRepository = new PrismaMessageRepository(prismaClient);
+    const followeeRepository = new PrismaFolloweeRepository(prismaClient);
+
+    const consoleTable = jest.fn();
+    jest.spyOn(console, 'table').mockImplementation(consoleTable);
+    await followeeRepository.followUser({ user: 'Alice', followee: 'Bob' });
+    await messageRepository.save(
+      messageBuilder()
+        .authoredBy('Alice')
+        .withId('alice-msg-id')
+        .publishedAt(now)
+        .withText('Message Test View command')
+        .build(),
+    );
+    await messageRepository.save(
+      messageBuilder()
+        .authoredBy('Bob')
+        .withId('bob-msg-id')
+        .publishedAt(new Date('2023-02-14T19:01:00.000Z'))
+        .withText('Hey, I am Bob!')
+        .build(),
+    );
+
+    await CommandTestFactory.run(commandInstance, ['wall', 'Alice']);
+
+    expect(consoleTable).toHaveBeenCalledWith([
+      {
+        author: 'Bob',
+        publicationTime: 'less than a minute ago',
+        text: 'Hey, I am Bob!',
+      },
       {
         author: 'Alice',
         publicationTime: 'less than a minute ago',

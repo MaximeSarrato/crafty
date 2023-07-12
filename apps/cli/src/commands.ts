@@ -1,10 +1,10 @@
 import {
-  EditMessageCommand,
   EditMessageUseCase,
+  EditMessageCommand,
 } from '@crafty/crafty/application/usecases/edit-message.usecase';
 import {
-  FollowUserCommand,
   FollowUserUseCase,
+  FollowUserCommand,
 } from '@crafty/crafty/application/usecases/follow-user.usecase';
 import {
   PostMessageCommand,
@@ -13,9 +13,13 @@ import {
 import { ViewTimelineUseCase } from '@crafty/crafty/application/usecases/view-timeline.usecase';
 import { ViewWallUseCase } from '@crafty/crafty/application/usecases/view-wall.usecase';
 import { Command, CommandRunner } from 'nest-commander';
-import { CliTimelinePresenter } from './cli.timeline.presenter';
+import { CliTimelinePresenter } from './cli-timeline.presenter';
 
-@Command({ name: 'post', arguments: '<user> <message>' })
+@Command({
+  name: 'post',
+  arguments: '<user> <message>',
+  description: 'Post a message',
+})
 class PostCommand extends CommandRunner {
   constructor(private readonly postMessageUseCase: PostMessageUseCase) {
     super();
@@ -23,22 +27,28 @@ class PostCommand extends CommandRunner {
 
   async run(passedParams: string[]): Promise<void> {
     const postMessageCommand: PostMessageCommand = {
-      id: Math.floor(Math.random() * 1000).toString(),
+      id: `${Math.floor(Math.random() * 10000)}`,
       author: passedParams[0],
       text: passedParams[1],
     };
+
     try {
-      await this.postMessageUseCase.handle(postMessageCommand);
-      console.log('✅ Message posté');
-      process.exit(0);
-    } catch (err) {
-      console.error('❌', err);
+      const result = await this.postMessageUseCase.handle(postMessageCommand);
+      if (result.isOk()) {
+        console.log('✅ Message posté !');
+        process.exit(0);
+      } else {
+        console.error('❌', result.error);
+        process.exit(1);
+      }
+    } catch (error) {
+      console.error('❌', error);
       process.exit(1);
     }
   }
 }
 
-@Command({ name: 'edit', arguments: '<user> <message-id> <message>' })
+@Command({ name: 'edit', arguments: '<message-id> <message>' })
 class EditCommand extends CommandRunner {
   constructor(private readonly editMessageUseCase: EditMessageUseCase) {
     super();
@@ -46,13 +56,18 @@ class EditCommand extends CommandRunner {
 
   async run(passedParams: string[]): Promise<void> {
     const editMessageCommand: EditMessageCommand = {
-      messageId: passedParams[1],
-      text: passedParams[2],
+      messageId: passedParams[0],
+      text: passedParams[1],
     };
     try {
-      await this.editMessageUseCase.handle(editMessageCommand);
-      console.log('✅ Message edité');
-      process.exit(0);
+      const result = await this.editMessageUseCase.handle(editMessageCommand);
+      if (result.isOk()) {
+        console.log('✅ Message edité');
+        process.exit(0);
+      } else {
+        console.error('❌', result.error);
+        process.exit(1);
+      }
     } catch (err) {
       console.error('❌', err);
       process.exit(1);

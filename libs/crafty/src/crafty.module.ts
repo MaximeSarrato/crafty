@@ -1,7 +1,7 @@
 import { ClassProvider, DynamicModule, Module } from '@nestjs/common';
 import { PrismaClient } from '@prisma/client';
 import { DateProvider } from './application/date-provider';
-import { FolloweeRepository } from './application/followee.repository';
+import { FolloweesRepository } from './application/followees.repository';
 import { MessageRepository } from './application/message.repository';
 import { EditMessageUseCase } from './application/usecases/edit-message.usecase';
 import { FollowUserUseCase } from './application/usecases/follow-user.usecase';
@@ -14,7 +14,7 @@ import { DefaultTimelinePresenter } from './apps/timeline.default.presenter';
 export class CraftyModule {
   static register(providers: {
     MessageRepository: ClassProvider<MessageRepository>['useClass'];
-    FolloweeRepository: ClassProvider<FolloweeRepository>['useClass'];
+    FolloweesRepository: ClassProvider<FolloweesRepository>['useClass'];
     DateProvider: ClassProvider<DateProvider>['useClass'];
     PrismaClient: ClassProvider<PrismaClient>['useClass'];
   }): DynamicModule {
@@ -32,8 +32,8 @@ export class CraftyModule {
           useClass: providers.MessageRepository,
         },
         {
-          provide: FolloweeRepository,
-          useClass: providers.FolloweeRepository,
+          provide: FolloweesRepository,
+          useClass: providers.FolloweesRepository,
         },
         {
           provide: DateProvider,

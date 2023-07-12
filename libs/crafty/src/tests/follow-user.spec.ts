@@ -1,25 +1,26 @@
-import { createFollowingFixture, FollowingFixture } from "./following.fixture";
+import { FolloweesFixture, createFolloweesFixture } from './followees.fixture';
 
-describe("Feature: Following a user", () => {
-  let fixture: FollowingFixture;
+describe('Feature: Following a user', () => {
+  let fixture: FolloweesFixture;
 
   beforeEach(() => {
-    fixture = createFollowingFixture();
+    fixture = createFolloweesFixture();
   });
-  test("Alice can follow Bob", async () => {
+
+  test('Alice can follow Bob', async () => {
     fixture.givenUserFollowees({
-      user: "Alice",
-      followees: ["Charlie"],
+      user: 'Alice',
+      followees: ['Charlie'],
     });
 
     await fixture.whenUserFollows({
-      user: "Alice",
-      userToFollow: "Bob",
+      user: 'Alice',
+      userToFollow: 'Bob',
     });
 
     await fixture.thenUserFolloweesAre({
-      user: "Alice",
-      followees: ["Charlie", "Bob"],
+      user: 'Alice',
+      followees: ['Charlie', 'Bob'],
     });
   });
 });

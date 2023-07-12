@@ -1,10 +1,10 @@
-import { Message, MessageText } from "../domain/message";
+import { Message } from '../domain/message';
 
 export const messageBuilder = ({
-  id = "message-id",
-  author = "Author",
-  text = "some text",
-  publishedAt = new Date("2023-02-08T15:00:00.000Z"),
+  id = 'message-id',
+  author = 'Author',
+  text = 'some text',
+  publishedAt = new Date('2023-02-08T15:00:00.000Z'),
 }: {
   id?: string;
   author?: string;
@@ -15,28 +15,16 @@ export const messageBuilder = ({
 
   return {
     withId(_id: string) {
-      return messageBuilder({
-        ...props,
-        id: _id,
-      });
+      return messageBuilder({ ...props, id: _id });
     },
     authoredBy(_author: string) {
-      return messageBuilder({
-        ...props,
-        author: _author,
-      });
+      return messageBuilder({ ...props, author: _author });
     },
     withText(_text: string) {
-      return messageBuilder({
-        ...props,
-        text: _text,
-      });
+      return messageBuilder({ ...props, text: _text });
     },
     publishedAt(_publishedAt: Date) {
-      return messageBuilder({
-        ...props,
-        publishedAt: _publishedAt,
-      });
+      return messageBuilder({ ...props, publishedAt: _publishedAt });
     },
     build(): Message {
       return Message.fromData({
