@@ -48,7 +48,7 @@ class PostCommand extends CommandRunner {
   }
 }
 
-@Command({ name: 'edit', arguments: '<user> <message-id> <message>' })
+@Command({ name: 'edit', arguments: '<message-id> <message>' })
 class EditCommand extends CommandRunner {
   constructor(private readonly editMessageUseCase: EditMessageUseCase) {
     super();
@@ -56,8 +56,8 @@ class EditCommand extends CommandRunner {
 
   async run(passedParams: string[]): Promise<void> {
     const editMessageCommand: EditMessageCommand = {
-      messageId: passedParams[1],
-      text: passedParams[2],
+      messageId: passedParams[0],
+      text: passedParams[1],
     };
     try {
       const result = await this.editMessageUseCase.handle(editMessageCommand);
